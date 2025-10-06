@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Kamery USB</title>
+    <style>
+    body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+    }
+    .container {
+        background: #2d2d2d;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    video {
+        width: 100%;
+        max-width: 640px;
+        height: auto;
+        border: 2px solid #555;
+        border-radius: 8px;
+    }
+    button {
+        background-color: #0d6efd;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        margin: 5px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+    }
+    button:hover {
+        background-color: #0b5ed7;
+    }
+    button:disabled {
+        background-color: #495057;
+        cursor: not-allowed;
+    }
+    .info {
+        margin-top: 20px;
+        padding: 10px;
+        background-color: #3a3a3a;
+        border-radius: 5px;
+        border: 1px solid #555;
+    }
+    .error {
+        color: #ff6b6b;
+        font-weight: bold;
+    }
+    .success {
+        color: #51cf66;
+        font-weight: bold;
+    }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Kamery USB</h1>
+        
+        <video id="video" autoplay muted></video>
+        
+        <select id="cameraSelect" style="margin-bottom: 10px; padding: 5px;">
+            <option value="">Wybierz kamerę...</option>
+        </select>
+
+        <div>
+            <button id="startBtn">Włącz kamerę</button>
+            <button id="stopBtn" disabled>Wyłącz kamerę</button>
+            <button id="photoBtn" disabled>Zrób zdjęcie</button>
+        </div>
+        
+        <canvas id="canvas" style="display: none;"></canvas>
+        <img id="photo" style="max-width: 100%; margin-top: 20px; display: none;">
+        
+        <div id="info" class="info">
+            <p><strong>Status:</strong> <span id="status">Gotowy do testu</span></p>
+            <p><strong>Rozdzielczość:</strong> <span id="resolution">-</span></p>
+            <p><strong>Urządzenie:</strong> <span id="device">-</span></p>
+        </div>
+    </div>
+
+    <script>
+        // Dodaj na początku skryptu
+        async function getCameras() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const cameras = devices.filter(device => device.kind === 'videoinput');
+                
+                const select = document.getElementById('cameraSelect');
+                select.innerHTML = '<option value="">Domyślna kamera</option>';
+                
+                cameras.forEach((camera, index) => {
+                    const option = document.createElement('option');
+                    option.value = camera.deviceId;
+                    option.textContent = camera.label || `Kamera ${index + 1}`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Błąd pobierania listy kamer:', error);
+            }
+        }
+
+
+        // Wywołaj przy ładowaniu strony
+        window.addEventListener('load', getCameras);
+
+        const video = document.getElementById('video');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const photoBtn = document.getElementById('photoBtn');
+        const canvas = document.getElementById('canvas');
+        const photo = document.getElementById('photo');
+        const status = document.getElementById('status');
+        const resolution = document.getElementById('resolution');
+        const device = document.getElementById('device');
+        
+        let stream = null;
+
+        // Sprawdź dostępność API
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            status.textContent = 'Twoja przeglądarka nie obsługuje dostępu do kamery';
+            status.className = 'error';
+        }
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                const select = document.getElementById('cameraSelect');
+                const deviceId = select.value;
+                
+                const constraints = {
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+                
+                if (deviceId) {
+                    constraints.video.deviceId = { exact: deviceId };
+                }
+                
+                status.textContent = 'Łączenie z kamerą...';
+                status.className = '';
+                
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } 
+                });
+                
+                video.srcObject = stream;
+                
+                // Pobierz informacje o strumieniu
+                const videoTrack = stream.getVideoTracks()[0];
+                const settings = videoTrack.getSettings();
+                
+                resolution.textContent = `${settings.width}x${settings.height}`;
+                device.textContent = videoTrack.label || 'Nieznane urządzenie';
+                status.textContent = 'Kamera działa!';
+                status.className = 'success';
+                
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                photoBtn.disabled = false;
+                
+            } catch (error) {
+                console.error('Błąd dostępu do kamery:', error);
+                status.textContent = `Błąd: ${error.message}`;
+                status.className = 'error';
+            }
+        });
+
+        stopBtn.addEventListener('click', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                stream = null;
+                
+                status.textContent = 'Kamera wyłączona';
+                status.className = '';
+                resolution.textContent = '-';
+                device.textContent = '-';
+                
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                photoBtn.disabled = true;
+                photo.style.display = 'none';
+            }
+        });
+
+        photoBtn.addEventListener('click', () => {
+            if (stream) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+                
+                const dataURL = canvas.toDataURL('image/png');
+                photo.src = dataURL;
+                photo.style.display = 'block';
+                
+                status.textContent = 'Zdjęcie zrobione!';
+                status.className = 'success';
+            }
+        });
+    </script>
+</body>
+</html>
