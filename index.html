@@ -62,18 +62,18 @@
 </head>
 <body>
     <div class="container">
-        <h1>Test Kamery USB</h1>
+        <h1>Online Webcam Test</h1>
         
         <video id="video" autoplay muted></video>
         
         <select id="cameraSelect" style="margin-bottom: 10px; padding: 5px;">
-            <option value="">Wybierz kamerę...</option>
+            <option value="">Select camera...</option>
         </select>
 
         <div>
-            <button id="startBtn">Włącz kamerę</button>
-            <button id="stopBtn" disabled>Wyłącz kamerę</button>
-            <button id="photoBtn" disabled>Zrób zdjęcie</button>
+            <button id="startBtn">Turn on the camera</button>
+            <button id="stopBtn" disabled>Turn off the camera</button>
+            <button id="photoBtn" disabled>Take a photo</button>
         </div>
         
         <canvas id="canvas" style="display: none;"></canvas>
@@ -81,34 +81,31 @@
         
         <div id="info" class="info">
             <p><strong>Status:</strong> <span id="status">Gotowy do testu</span></p>
-            <p><strong>Rozdzielczość:</strong> <span id="resolution">-</span></p>
-            <p><strong>Urządzenie:</strong> <span id="device">-</span></p>
+            <p><strong>Resolution:</strong> <span id="resolution">-</span></p>
+            <p><strong>Device:</strong> <span id="device">-</span></p>
         </div>
     </div>
 
     <script>
-        // Dodaj na początku skryptu
         async function getCameras() {
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const cameras = devices.filter(device => device.kind === 'videoinput');
                 
                 const select = document.getElementById('cameraSelect');
-                select.innerHTML = '<option value="">Domyślna kamera</option>';
+                select.innerHTML = '<option value="">Default camera</option>';
                 
                 cameras.forEach((camera, index) => {
                     const option = document.createElement('option');
                     option.value = camera.deviceId;
-                    option.textContent = camera.label || `Kamera ${index + 1}`;
+                    option.textContent = camera.label || `Camera ${index + 1}`;
                     select.appendChild(option);
                 });
             } catch (error) {
-                console.error('Błąd pobierania listy kamer:', error);
+                console.error('Error getting camera list:', error);
             }
         }
 
-
-        // Wywołaj przy ładowaniu strony
         window.addEventListener('load', getCameras);
 
         const video = document.getElementById('video');
@@ -123,9 +120,8 @@
         
         let stream = null;
 
-        // Sprawdź dostępność API
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            status.textContent = 'Twoja przeglądarka nie obsługuje dostępu do kamery';
+            status.textContent = 'Your browser does not support camera access.';
             status.className = 'error';
         }
 
@@ -145,7 +141,7 @@
                     constraints.video.deviceId = { exact: deviceId };
                 }
                 
-                status.textContent = 'Łączenie z kamerą...';
+                status.textContent = 'Connecting to camera...';
                 status.className = '';
                 
                 stream = await navigator.mediaDevices.getUserMedia({ 
@@ -157,13 +153,12 @@
                 
                 video.srcObject = stream;
                 
-                // Pobierz informacje o strumieniu
                 const videoTrack = stream.getVideoTracks()[0];
                 const settings = videoTrack.getSettings();
                 
                 resolution.textContent = `${settings.width}x${settings.height}`;
-                device.textContent = videoTrack.label || 'Nieznane urządzenie';
-                status.textContent = 'Kamera działa!';
+                device.textContent = videoTrack.label || 'Unknown device';
+                status.textContent = 'The camera works!';
                 status.className = 'success';
                 
                 startBtn.disabled = true;
@@ -171,7 +166,7 @@
                 photoBtn.disabled = false;
                 
             } catch (error) {
-                console.error('Błąd dostępu do kamery:', error);
+                console.error('Camera access error:', error);
                 status.textContent = `Błąd: ${error.message}`;
                 status.className = 'error';
             }
@@ -183,7 +178,7 @@
                 video.srcObject = null;
                 stream = null;
                 
-                status.textContent = 'Kamera wyłączona';
+                status.textContent = 'Camera turned off';
                 status.className = '';
                 resolution.textContent = '-';
                 device.textContent = '-';
@@ -207,7 +202,7 @@
                 photo.src = dataURL;
                 photo.style.display = 'block';
                 
-                status.textContent = 'Zdjęcie zrobione!';
+                status.textContent = 'Photo taken!';
                 status.className = 'success';
             }
         });
